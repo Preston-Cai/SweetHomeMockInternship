@@ -1130,6 +1130,8 @@ public class FurnitureTable extends JTable implements View, Printable {
           return preferences.getLocalizedString(FurnitureTable.class, "depthColumn");
         case HEIGHT : 
           return preferences.getLocalizedString(FurnitureTable.class, "heightColumn");
+        case VOLUME :
+          return preferences.getLocalizedString(FurnitureTable.class, "volumeColumn");
         case X : 
           return preferences.getLocalizedString(FurnitureTable.class, "xColumn");
         case Y :
@@ -1173,7 +1175,8 @@ public class FurnitureTable extends JTable implements View, Printable {
           return 120; 
         case WIDTH :
         case DEPTH :
-        case HEIGHT : 
+        case HEIGHT :
+        case VOLUME :
         case X : 
         case Y :
         case ELEVATION : 
@@ -1215,7 +1218,9 @@ public class FurnitureTable extends JTable implements View, Printable {
           return getSizeRenderer(HomePieceOfFurniture.SortableProperty.DEPTH, preferences);
         case HEIGHT : 
           return getSizeRenderer(HomePieceOfFurniture.SortableProperty.HEIGHT, preferences);
-        case X : 
+        case VOLUME :
+          return getVolumeRenderer(preferences);
+        case X :
           return getSizeRenderer(HomePieceOfFurniture.SortableProperty.X, preferences);
         case Y :
           return getSizeRenderer(HomePieceOfFurniture.SortableProperty.Y, preferences);
@@ -1282,12 +1287,61 @@ public class FurnitureTable extends JTable implements View, Printable {
         }
       };
     }
-    
+
     /**
      * Returns a renderer that displays the name of a piece of furniture with its icon ahead. 
      */
     private TableCellRenderer getNameWithIconRenderer() {
       return new TreeTableNameCellRenderer();
+    }
+
+    /**
+     * Returns a renderer that converts furniture volume from cubic centimeters
+     * to the cubic unit matching user preferences.
+     */
+    private TableCellRenderer getVolumeRenderer(final UserPreferences preferences) {
+      return new DefaultTableCellRenderer() {
+        @Override
+        public Component getTableCellRendererComponent(JTable table,
+            Object value, boolean isSelected, boolean hasFocus,
+            int row, int column) {
+          Object displayedValue = null;
+          if (value != null) {
+            LengthUnit lengthUnit = preferences.getLengthUnit();
+            float volume = ((HomePieceOfFurniture)value).getVolume();
+            float volumeForLengthFormat;
+            switch (lengthUnit) {
+              case MILLIMETER:
+                volumeForLengthFormat = lengthUnit.unitToCentimeter(volume * 1000);
+                break;
+              case CENTIMETER:
+                volumeForLengthFormat = volume;
+                break;
+              case METER:
+                volumeForLengthFormat = lengthUnit.unitToCentimeter(volume / 1000000);
+                break;
+              case INCH:
+                float centimeterToFoot = LengthUnit.centimeterToFoot(1);
+                float cubicFeet = volume
+                    * centimeterToFoot * centimeterToFoot * centimeterToFoot;
+                volumeForLengthFormat = LengthUnit.footToCentimeter(cubicFeet);
+                break;
+              case INCH_DECIMALS:
+                float centimeterToInch = LengthUnit.centimeterToInch(1);
+                float cubicInches = volume
+                    * centimeterToInch * centimeterToInch * centimeterToInch;
+                volumeForLengthFormat = LengthUnit.inchToCentimeter(cubicInches);
+                break;
+              default:
+                throw new IllegalArgumentException("Unknown volume unit " + lengthUnit);
+            }
+            displayedValue = lengthUnit.getFormat().format(volumeForLengthFormat);
+          }
+          setHorizontalAlignment(JLabel.RIGHT);
+          return super.getTableCellRendererComponent(
+              table, displayedValue, isSelected, hasFocus, row, column);
+        }
+      };
     }
 
     /**
@@ -1298,7 +1352,8 @@ public class FurnitureTable extends JTable implements View, Printable {
                                               final UserPreferences preferences) {
       // Renderer super class used to display sizes
       class SizeRenderer extends DefaultTableCellRenderer {
-        public Component getTableCellRendererComponent(JTable table, 
+        @Override
+        public Component getTableCellRendererComponent(JTable table,
              Object value, boolean isSelected, boolean hasFocus, 
              int row, int column) {
           if (value != null) {
@@ -1341,6 +1396,7 @@ public class FurnitureTable extends JTable implements View, Printable {
                     isSelected, hasFocus, row, column);
               }
             };
+
         case X :
           return new SizeRenderer() {
               @Override
